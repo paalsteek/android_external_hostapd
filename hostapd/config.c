@@ -1570,7 +1570,7 @@ int hostapd_load_acl(const char* fname, struct hostapd_bss_config *bss)
 
 int hostapd_reload_acl() {
 	struct hapd_interfaces *hapds = eloop_get_user_data();
-	int i, j;
+	unsigned int i, j;
 
 	wpa_printf(MSG_DEBUG, "HAPDTI %s", __func__);
 

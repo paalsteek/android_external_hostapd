@@ -461,10 +461,27 @@ int hostapd_ctrl_iface_init(struct hostapd_data *hapd)
 	fname = hostapd_ctrl_iface_path(hapd);
 	if (fname == NULL)
 		goto fail;
+
+	wpa_printf(MSG_DEBUG, "%s: socket=%s", __FUNCTION__, fname);
+
 	os_strlcpy(addr.sun_path, fname, sizeof(addr.sun_path));
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind(PF_UNIX)");
-		goto fail;
+#ifdef FORCE_IF_SOCKET
+		if (errno == EADDRINUSE) {
+			wpa_printf(MSG_WARNING, "%s: socket in use, retrying...", __FUNCTION__);
+			usleep(1000000);
+			unlink(fname);
+			if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+				perror("bind(PF_UNIX)");
+				goto fail;
+			}
+		}
+		else
+#endif
+		{
+			perror("bind(PF_UNIX)");
+			goto fail;
+		}
 	}
 
 	if (hapd->conf->ctrl_interface_gid_set &&

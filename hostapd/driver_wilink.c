@@ -71,6 +71,7 @@
 #include "wpa.h"
 #include "wpa_auth_i.h"
 #include "regulatory.h"
+#include "beacon.h"
 
 #include <signal.h>
 #ifndef ANDROID
@@ -151,10 +152,11 @@ static void wilink_rx_mgmt(void *ctx, const u8 *src_addr, const u8 *data, size_t
 	buf = ((u8*) data) + sizeof(TApFrameHeader);
 	/* 'len' and 'buf' now refer to the actual frame less the WILINK hdr */
 
-	wpa_printf(MSG_DEBUG, "%s: received MGMT with len %d from " MACSTR, __func__,
+	wpa_printf(MSG_VERBOSE, "%s: received MGMT with len %d from " MACSTR, __func__,
 			(int) len, MAC2STR(src_addr));
-	wpa_hexdump(MSG_DEBUG, "MGMT", data, data_len);
-    wpa_printf(MSG_DEBUG,"\n");
+
+	wpa_hexdump(MSG_VERBOSE, "MGMT", data, data_len);
+	wpa_printf(MSG_VERBOSE,"\n");
 
 	hdr = (struct ieee80211_hdr *) buf;
 	fc = le_to_host16(hdr->frame_control);
@@ -162,37 +164,35 @@ static void wilink_rx_mgmt(void *ctx, const u8 *src_addr, const u8 *data, size_t
 	type = WLAN_FC_GET_TYPE(fc);
 	stype = WLAN_FC_GET_STYPE(fc);
 
-    if (type != WLAN_FC_TYPE_MGMT) {
+	if (type != WLAN_FC_TYPE_MGMT) {
 		wpa_printf(MSG_ERROR, "HAPDTIERR %s: frame is not mgmt frame", __func__);
 		return;
 	}
 
-	switch (((TApFrameHeader*)data)->sCtrlHdr) { 
+	switch (((TApFrameHeader*)data)->sCtrlHdr) {
 	case AP_CTRL_HDR_RX:
-		wpa_printf(MSG_DEBUG, "HAPDTI %s: processing management frame", __func__);
+		wpa_printf(MSG_VERBOSE, "HAPDTI %s: processing management frame", __func__);
 		memset(&fi, 0, sizeof(struct hostapd_frame_info));
 		fi.phytype = 7;
 		ieee802_11_mgmt(hapd, buf, len, stype, &fi);
 		break;
-    case AP_CTRL_HDR_TX_SUCCESS: 		/* successful TX Complete event */
-        wpa_printf(MSG_DEBUG, "HAPDTI %s: GET TX SUCCSESS", __func__);
+	case AP_CTRL_HDR_TX_SUCCESS: 		/* successful TX Complete event */
+		wpa_printf(MSG_DEBUG, "HAPDTI %s: GET TX SUCCSESS", __func__);
 		wilink_tx_callback(hapd, buf, len, 1);
 		return;
-    case AP_CTRL_HDR_TX_FAIL: 			/* fail TX Complete event */
-        wpa_printf(MSG_DEBUG, "HAPDTI %s: GET TX FAIL", __func__);
+	case AP_CTRL_HDR_TX_FAIL: 			/* fail TX Complete event */
+		wpa_printf(MSG_DEBUG, "HAPDTI %s: GET TX FAIL", __func__);
 		wilink_tx_callback(hapd, buf, len, 0);
 		return;
 	}
 
-    sta = ap_get_sta(hapd,  hdr->addr2);
-    if (!sta) {
-        wpa_printf(MSG_ERROR,"station is not found" MACSTR, MAC2STR(hdr->addr2));
-    }
-    else {
-        sta->flags |= WLAN_STA_AUTH;
-    }
-
-
+	sta = ap_get_sta(hapd,  hdr->addr2);
+	if (!sta) {
+		wpa_printf(MSG_VERBOSE,"station is not found " MACSTR, MAC2STR(hdr->addr2));
+	}
+	else {
+		sta->flags |= WLAN_STA_AUTH;
+	}
 }
 
 #ifndef ANDROID
@@ -553,13 +553,13 @@ static int wilink_send_ti_private_cmd(struct wilink_driver_data *drv, int OpCode
 	}
 
 	os_memset(&iwr, 0, sizeof(iwr));
-	os_strncpy(iwr.ifr_name, drv->iface, IFNAMSIZ);	
+	os_strncpy(iwr.ifr_name, drv->iface, IFNAMSIZ);
 
 	iwr.u.data.pointer = &private_cmd;
 	iwr.u.data.length = sizeof(ti_private_cmd_t);
-	iwr.u.data.flags = 0;	
+	iwr.u.data.flags = 0;
 
-	if (ioctl(drv->cmd_sock, SIOCIWAPPRIV, &iwr) < 0) 
+	if (ioctl(drv->cmd_sock, SIOCIWAPPRIV, &iwr) < 0)
 	{
 		perror("ioctl[SIOCIWFIRSTPRIV+2]");
 		return -1;
@@ -577,7 +577,7 @@ static void *wilink_init(struct hostapd_data *hapd)
 	wpa_printf(MSG_DEBUG, "HAPDTI %s: enter", __func__);
 
 #ifndef ANDROID
-	signal(SIGSEGV, handler);	
+	signal(SIGSEGV, handler);
 #endif
 
 	drv = os_zalloc(sizeof(struct wilink_driver_data));
@@ -587,11 +587,12 @@ static void *wilink_init(struct hostapd_data *hapd)
 	}
 
 	drv->hapd = hapd;
-    
-   if (hapd->conf == NULL) 
-        wpa_printf(MSG_ERROR,"HAPDTIERR %s: hapd->conf null \n", __func__);
-    else
-       memcpy(drv->iface, hapd->conf->iface, sizeof(drv->iface));
+
+	if (hapd->conf == NULL)  {
+		wpa_printf(MSG_ERROR,"HAPDTIERR %s: hapd->conf null \n", __func__);
+	} else {
+		memcpy(drv->iface, hapd->conf->iface, sizeof(drv->iface));
+	}
 
 	/* init cmd_sock */
 	drv->cmd_sock = socket(PF_INET, SOCK_DGRAM, 0);
@@ -607,31 +608,32 @@ static void *wilink_init(struct hostapd_data *hapd)
 			ETH_P_EAPOL,
 			wilink_rx_eapol, drv, 0);
 
-    drv->mlme_l2 = l2_packet_init(drv->iface,
+	drv->mlme_l2 = l2_packet_init(drv->iface,
 			NULL,
 			AP_MGMT_ETH_TYPE,
 			wilink_rx_mgmt, drv, 0);
-   
-    if (!drv->eapol_l2 || !drv->mlme_l2) {
+
+	if (!drv->eapol_l2 || !drv->mlme_l2) {
 		wpa_printf(MSG_ERROR, "HAPDTIERR %s: error creating l2 sockets", __func__);
 		goto failed;
 	}
 
-    if (l2_packet_get_own_addr(drv->eapol_l2, hapd->own_addr))
-    {
-        wpa_printf(MSG_ERROR, "HAPDTIERR %s: cannot retrieve own hwdr addr", __func__);
-        goto failed;
-    }
+	if (l2_packet_get_own_addr(drv->eapol_l2, hapd->own_addr))
+	{
+		wpa_printf(MSG_ERROR, "HAPDTIERR %s: cannot retrieve own hwdr addr", __func__);
+		goto failed;
+	}
 
-    drv->pRegDomain = (TApChanHwInfo *) os_zalloc(sizeof(TApChanHwInfo));
+	drv->pRegDomain = (TApChanHwInfo *) os_zalloc(sizeof(TApChanHwInfo));
 	if (drv->pRegDomain == NULL) {
 		wpa_printf(MSG_ERROR, "HAPDTIERR %s: Could not allocate memory for RegDomain", __func__);
-        goto failed;
+		goto failed;
 	}
-    drv->pRegDomainHandle = regulatory_create();
-    if (drv->pRegDomainHandle == NULL) {
+
+	drv->pRegDomainHandle = regulatory_create();
+	if (drv->pRegDomainHandle == NULL) {
 		wpa_printf(MSG_ERROR, "HAPDTIERR %s: Could not allocate memory for RegDomain", __func__);
-        goto failed;
+		goto failed;
 	}
 
 	ret  = wilink_send_ti_private_cmd(drv, ROLE_AP_ENABLE, NULL, 0);
@@ -643,9 +645,9 @@ static void *wilink_init(struct hostapd_data *hapd)
 	return drv;
 
 failed:
-    wpa_printf(MSG_ERROR, "HAPDTIERR %s: failed", __func__);
+	wpa_printf(MSG_ERROR, "HAPDTIERR %s: failed", __func__);
 
-	/* Free of allocated resources will be performed in driver deinit() callback which shall 
+	/* Free of allocated resources will be performed in driver deinit() callback which shall
 	be called when init() returns NULL*/
 	if (drv->cmd_sock > 0)
 		close(drv->cmd_sock);
@@ -653,10 +655,11 @@ failed:
 		l2_packet_deinit(drv->eapol_l2);
 	if (drv->mlme_l2)
 		l2_packet_deinit(drv->mlme_l2);
-    if (drv->pRegDomain)
-        free(drv->pRegDomain);
-    regulatory_destroy(drv->pRegDomainHandle);
-    free(drv);
+	if (drv->pRegDomain)
+		free(drv->pRegDomain);
+
+	regulatory_destroy(drv->pRegDomainHandle);
+	free(drv);
 	return NULL;
 }
 
@@ -669,15 +672,14 @@ static void wilink_deinit(void *priv) {
 	ret  = wilink_send_ti_private_cmd(drv, ROLE_AP_STOP, NULL, 0);
 	if (ret)
 		wpa_printf(MSG_ERROR, "HAPDTIERR %s: error sending STOP command to the driver", __func__);
-	
 
-    if (drv->cmd_sock > 0)
+	if (drv->cmd_sock > 0)
 		close(drv->cmd_sock);
 	if (drv->eapol_l2)
 		l2_packet_deinit(drv->eapol_l2);
 	if (drv->mlme_l2)
 		l2_packet_deinit(drv->mlme_l2);
-    if(drv->pRegDomain)
+	if(drv->pRegDomain)
 		free(drv->pRegDomain);
 
 	regulatory_destroy(drv->pRegDomainHandle);

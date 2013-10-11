@@ -56,6 +56,7 @@ void wpa_debug_print_timestamp(void)
  *
  * Note: New line '\n' is added to the end of the text when printing to stdout.
  */
+#ifndef ANDROID_LOG
 void wpa_printf(int level, char *fmt, ...)
 {
 	va_list ap;
@@ -77,7 +78,19 @@ void wpa_printf(int level, char *fmt, ...)
 	}
 	va_end(ap);
 }
+#else
+void android_perror(const char *s)
+{
+	char buff[256];
+	buff[255] = '\0';
 
+	strerror_r(errno, buff, sizeof(buff));
+
+	wpa_printf(MSG_ERROR, "%s: %s", s, buff);
+
+	//fprintf(2, "%s: %s\n", s, buff);
+}
+#endif
 
 static void _wpa_hexdump(int level, const char *title, const u8 *buf,
 			 size_t len, int show)

@@ -3,7 +3,7 @@ ifneq ($(BOARD_SOFTAP_DEVICE),)
 LOCAL_PATH := $(call my-dir)
 
 ifndef AP_CFLAGS
-AP_CFLAGS = -MMD -O2 -Wall -g
+AP_CFLAGS = -MMD -O2 -Wall -g -Wno-unused
 endif
 
 # define HOSTAPD_DUMP_STATE to include SIGUSR1 handler for dumping state to
@@ -121,14 +121,21 @@ endif
 ifdef AP_CONFIG_DRIVER_WILINK
 TI_HOSTAPD_LIB = y
 AP_CFLAGS += -DCONFIG_DRIVER_WILINK
-C_INCLUDES += \
-	hardware/ti/wlan/$(BOARD_SOFTAP_DEVICE)_softAP/stad/Export_Inc \
-	hardware/ti/wlan/$(BOARD_SOFTAP_DEVICE)_softAP/utils \
-	hardware/ti/wlan/$(BOARD_SOFTAP_DEVICE)_softAP/platforms/os/linux/inc
+
+  ifneq ($(BOARD_HOSTAPD_TIAP_ROOT),)
+      TIAP_ROOT := $(BOARD_HOSTAPD_TIAP_ROOT)
+  else
+      TIAP_ROOT := hardware/ti/wlan/$(BOARD_SOFTAP_DEVICE)_softAP
+  endif
+
+  C_INCLUDES += \
+      ${TIAP_ROOT}/stad/Export_Inc \
+      ${TIAP_ROOT}/utils \
+      ${TIAP_ROOT}/platforms/os/linux/inc
 
 AP_CONFIG_L2_PACKET=linux
 OBJS += hostapd/regulatory.c
-OBJS += hostapd/driver_wilink.c 
+OBJS += hostapd/driver_wilink.c
 endif
 
 ifdef AP_CONFIG_DRIVER_WIRED
@@ -579,9 +586,9 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := hostap
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := libc libcutils libcrypto libssl
-#LOCAL_FORCE_STATIC_EXCUTABLE := true
+#LOCAL_FORCE_STATIC_EXECUTABLE := true
 #LOCAL_STATIC_LIBRARIES := libc libcutils
-LOCAL_CFLAGS := $(AP_CFLAGS)
+LOCAL_CFLAGS := $(AP_CFLAGS) -DANDROID_LOG -DFORCE_IF_SOCKET
 LOCAL_SRC_FILES := $(OBJS)
 LOCAL_C_INCLUDES := $(C_INCLUDES)
 include $(BUILD_EXECUTABLE)

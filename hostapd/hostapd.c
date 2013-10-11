@@ -1337,7 +1337,7 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
 	}
 
 	if (!hostapd_drv_none(hapd)) {
-		wpa_printf(MSG_ERROR, "Using interface %s with hwaddr " MACSTR
+		wpa_printf(MSG_INFO, "Using interface %s with hwaddr " MACSTR
 			   " and ssid '%s'",
 			   hapd->conf->iface, MAC2STR(hapd->own_addr),
 			   hapd->conf->ssid.ssid);
@@ -1624,6 +1624,9 @@ static int setup_interface(struct hostapd_iface *iface)
 	prev_addr = hapd->own_addr;
 
 	for (j = 0; j < iface->num_bss; j++) {
+
+                wpa_printf(MSG_DEBUG, "%s: setup bss %d/%d...", __FUNCTION__, (j+1), iface->num_bss);
+
 		hapd = iface->bss[j];
 		if (j)
 			os_memcpy(hapd->own_addr, prev_addr, ETH_ALEN);
@@ -1632,6 +1635,8 @@ static int setup_interface(struct hostapd_iface *iface)
 		if (hostapd_mac_comp_empty(hapd->conf->bssid) == 0)
 			prev_addr = hapd->own_addr;
 	}
+
+        wpa_printf(MSG_DEBUG, "%s: setup bss done", __FUNCTION__);
 
 	hostapd_tx_queue_params(iface);
 
@@ -1896,7 +1901,7 @@ static int hostapd_init_iface(struct hostapd_iface *iface, const char *config_fi
  */
 static void hostapd_deinit_iface(struct hostapd_iface *iface)
 {
-	int j;
+	unsigned int j;
 
 	wpa_printf(MSG_DEBUG, "**************%s**************", __func__);
 
@@ -1928,7 +1933,8 @@ static void hostapd_deinit_iface(struct hostapd_iface *iface)
  */
 int hostapd_reset_iface(struct hostapd_iface *iface, const char *config_fname, int deauth_stas)
 {
-	int j, ret;
+	int ret;
+	unsigned int j;
 
 	if (!iface)
 		return -1;
@@ -2001,7 +2007,7 @@ int hostapd_start_iface(struct hostapd_iface *iface, const char *config_fname)
  */
 int hostapd_stop_iface_driver(struct hostapd_iface *iface)
 {
-	int i;
+	unsigned int i;
 
 	wpa_printf(MSG_DEBUG, "***********%s********", __func__);
 
@@ -2103,7 +2109,7 @@ int main(int argc, char *argv[])
 
 	/* Initialize interfaces */
 	for (i = 0; i < interfaces.count; i++) {
-		wpa_printf(MSG_ERROR, "Configuration file: %s",
+		wpa_printf(MSG_INFO, "Configuration file: %s",
 			   argv[optind + i]);
 
 		interfaces.iface[i] = os_zalloc(sizeof(struct hostapd_iface));

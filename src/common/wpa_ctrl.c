@@ -24,7 +24,7 @@
 #include "common.h"
 
 #ifdef ANDROID
-static const char *local_socket_dir = "/data/misc/wifi/sockets";
+static const char *local_socket_dir = "/data/misc/wifi/hostapd";
 static const char *local_socket_prefix = "wpa_ctrl_";
 #endif /* ANDROID */
 
